@@ -1,7 +1,7 @@
 "=============================================================================
 " File: explorer.vim
 " Author: M A Aziz Ahmed (aziz@acorn-networks.com)
-" Last Change: Sat Feb 16 12:00 PM 2002 PST
+" Last Change: Sun Mar 31 11:00 PM 2002 PST
 " Version: 2.5
 " Additions by Mark Waggoner (waggoner@aracnet.com) et al.
 "-----------------------------------------------------------------------------
@@ -124,6 +124,17 @@ if !exists("g:defaultExplorer")
 	let g:defaultExplorer = 1
 end
 
+if !exists('g:favDirs')
+	if exists('$HOME')
+		let s:favDirs = expand('$HOME').'/'
+	end
+else
+	if exists('$HOME')
+		let s:favDirs = g:favDirs."\/\n".expand('$HOME')
+	end
+end
+let s:favDirs = substitute(s:favDirs, '\', '/', 'g')
+let s:favDirs = substitute(s:favDirs, '\/\/', '\/', 'g')
 
 " -- stuff used by winmanager
 let g:FileExplorer_title = "[File List]"
@@ -183,36 +194,36 @@ let s:separator='"---------------------------------------------------'
 " Start the explorer using the preferences from the global variables
 "
 function! s:StartExplorer(split, start_dir)
-  let startcmd = "edit"
-  if a:start_dir != ""
-    let fname=a:start_dir
-  else
-    let fname = expand("%:p:h")
-  endif
-  if fname == ""
-    let fname = getcwd()
-  endif
+	let startcmd = "edit"
+	if a:start_dir != ""
+		let fname=a:start_dir
+	else
+		let fname = expand("%:p:h")
+	endif
+	if fname == ""
+		let fname = getcwd()
+	endif
 
-  " Create a variable to use if splitting vertically
-  let splitMode = ""
-  if g:explVertical == 1
-    let splitMode = "vertical"
-  endif
+	" Create a variable to use if splitting vertically
+	let splitMode = ""
+	if g:explVertical == 1
+		let splitMode = "vertical"
+	endif
 
-  " Save the user's settings for splitbelow and splitright
-  let savesplitbelow = &splitbelow
-  let savesplitright = &splitright
+	" Save the user's settings for splitbelow and splitright
+	let savesplitbelow = &splitbelow
+	let savesplitright = &splitright
 
-  if a:split || &modified
-    let startcmd = splitMode . " " . g:explWinSize . "new " . fname
-    let &splitbelow = g:explStartBelow
-    let &splitright = g:explStartRight
-  else
-    let startcmd = "edit " . fname
-  endif
-  silent execute startcmd
-  let &splitbelow = savesplitbelow
-  let &splitright = savesplitright
+	if a:split || &modified
+		let startcmd = splitMode . " " . g:explWinSize . "new " . fname
+		let &splitbelow = g:explStartBelow
+		let &splitright = g:explStartRight
+	else
+		let startcmd = "edit " . fname
+	endif
+	silent execute startcmd
+	let &splitbelow = savesplitbelow
+	let &splitright = savesplitright
 endfunction
 
 
@@ -242,54 +253,54 @@ function! s:EditDir(...)
 	if !isdirectory(name)
 		return
 	endif
-	
-  " Turn off the swapfile, set the buffer type so that it won't get
-  " written, and so that it will get deleted when it gets hidden.
-  setlocal modifiable
-  setlocal noswapfile
-  setlocal buftype=nowrite
-  setlocal bufhidden=delete
-  " Don't wrap around long lines
-  setlocal nowrap
 
-	
-  " Get the complete path to the directory to look at with a slash at
-  " the end
-  let b:completePath = s:Path(name)
+	" Turn off the swapfile, set the buffer type so that it won't get
+	" written, and so that it will get deleted when it gets hidden.
+	setlocal modifiable
+	setlocal noswapfile
+	setlocal buftype=nowrite
+	setlocal bufhidden=delete
+	" Don't wrap around long lines
+	setlocal nowrap
+
+
+	" Get the complete path to the directory to look at with a slash at
+	" the end
+	let b:completePath = s:Path(name)
 	let s:lastDirectoryDisplayed = b:completePath
 
-  " Save the directory we are currently in and chdir to the directory
-  " we are editing so that we can get a real path to the directory,
-  " eliminating things like ".."
-  let origdir= s:Path(getcwd())
-  exe "chdir" escape(b:completePath,s:escfilename)
-  let b:completePath = s:Path(getcwd())
-  exe "chdir" escape(origdir,s:escfilename)
+	" Save the directory we are currently in and chdir to the directory
+	" we are editing so that we can get a real path to the directory,
+	" eliminating things like ".."
+	let origdir= s:Path(getcwd())
+	exe "chdir" escape(b:completePath,s:escfilename)
+	let b:completePath = s:Path(getcwd())
+	exe "chdir" escape(origdir,s:escfilename)
 
-  " Add a slash at the end
-  if b:completePath !~ '/$'
-    let b:completePath = b:completePath . '/'
-  endif
+	" Add a slash at the end
+	if b:completePath !~ '/$'
+		let b:completePath = b:completePath . '/'
+	endif
 
-  " escape special characters for exec commands
-  let b:completePathEsc=escape(b:completePath,s:escfilename)
-  let b:parentDirEsc=substitute(b:completePathEsc, '/[^/]*/$', '/', 'g')
-	
-  " Set filter for hiding files
-  let b:filterFormula=substitute(g:explHideFiles, '\([^\\]\),', '\1\\|', 'g')
-  if b:filterFormula != ''
-    let b:filtering="\nNot showing: " . b:filterFormula
-  else
-    let b:filtering=""
-  endif
+	" escape special characters for exec commands
+	let b:completePathEsc=escape(b:completePath,s:escfilename)
+	let b:parentDirEsc=substitute(b:completePathEsc, '/[^/]*/$', '/', 'g')
+
+	" Set filter for hiding files
+	let b:filterFormula=substitute(g:explHideFiles, '\([^\\]\),', '\1\\|', 'g')
+	if b:filterFormula != ''
+		let b:filtering="\nNot showing: " . b:filterFormula
+	else
+		let b:filtering=""
+	endif
 
 
-  " added to allow directory caching
+	" added to allow directory caching
 	" s:numFileBuffers is an array containing the names of the directories
 	" visited.
-  if !exists("s:numFileBuffers")
-    let s:numFileBuffers = 0
-  end
+	if !exists("s:numFileBuffers")
+		let s:numFileBuffers = 0
+	end
 
 	let i = 1
 	while i <= s:numFileBuffers
@@ -307,10 +318,11 @@ function! s:EditDir(...)
 				0
 				let b:maxFileLen = 0
 				/^"=/+1,$g/^/call s:MarkDirs()
-  			call s:CleanUpHistory()
+				call s:CleanUpHistory()
+				call s:PrintFavDirs()
 				0
 				/^"=/+1
-  			call s:CleanUpHistory()
+				call s:CleanUpHistory()
 				let &report=oldRep
 				let &sc = save_sc
 			end
@@ -321,77 +333,78 @@ function! s:EditDir(...)
 		let i = i+1	
 	endwhile
 
-  " No need for any insertmode abbreviations, since we don't allow
-  " insertions anyway!
-  iabc <buffer>
+	" No need for any insertmode abbreviations, since we don't allow
+	" insertions anyway!
+	iabc <buffer>
 
-  " Long or short listing?  Use the global variable the first time
-  " explorer is called, after that use the script variable as set by
-  " the interactive user.
-  if exists("s:longlist")
-    let w:longlist = s:longlist
-  else
-    let w:longlist = g:explDetailedList
-  endif
+	" Long or short listing?  Use the global variable the first time
+	" explorer is called, after that use the script variable as set by
+	" the interactive user.
+	if exists("s:longlist")
+		let w:longlist = s:longlist
+	else
+		let w:longlist = g:explDetailedList
+	endif
 
-  " Show keyboard shortcuts?
-  if exists("s:longhelp")
-    let w:longhelp = s:longhelp
-  else
-    let w:longhelp = g:explDetailedHelp
-  endif
-	call PrintError('setting window variables for '.winnr())
+	" Show keyboard shortcuts?
+	if exists("s:longhelp")
+		let w:longhelp = s:longhelp
+	else
+		let w:longhelp = g:explDetailedHelp
+	endif
 
-  " Set the sort based on the global variables the first time.  If you
-  " later change the sort order, it will be retained in the s:sortby
-  " variable for the next time you open explorer
-  let w:sortdirection=1
-  let w:sortdirlabel = ""
-  let w:sorttype = ""
-  if exists("s:sortby")
-    let sortby=s:sortby
-  else
-    let sortby=g:explSortBy
-  endif
-  if sortby =~ "reverse"
-    let w:sortdirection=-1
-    let w:sortdirlabel = "reverse "
-  endif
-  if sortby =~ "date"
-    let w:sorttype = "date"
-  elseif sortby =~ "size"
-    let w:sorttype = "size"
-  else
-    let w:sorttype = "name"
-  endif
-  call s:SetSuffixesLast()
+	" Set the sort based on the global variables the first time.  If you
+	" later change the sort order, it will be retained in the s:sortby
+	" variable for the next time you open explorer
+	let w:sortdirection=1
+	let w:sortdirlabel = ""
+	let w:sorttype = ""
+	if exists("s:sortby")
+		let sortby=s:sortby
+	else
+		let sortby=g:explSortBy
+	endif
+	if sortby =~ "reverse"
+		let w:sortdirection=-1
+		let w:sortdirlabel = "reverse "
+	endif
+	if sortby =~ "date"
+		let w:sorttype = "date"
+	elseif sortby =~ "size"
+		let w:sorttype = "size"
+	else
+		let w:sorttype = "name"
+	endif
+	call s:SetSuffixesLast()
 
-  " Set up syntax highlighting
-  " Something wrong with the evaluation of the conditional though...
-  if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
-    syn match browseSynopsis    "^\"[ -].*"
-    syn match browseDirectory   "[^\"].*/ "
-    syn match browseDirectory   "[^\"].*/$"
-    syn match browseCurDir      "^\"= .*$"
-    syn match browseSortBy      "^\" Sorted by .*$"  contains=browseSuffixInfo
-    syn match browseSuffixInfo  "(.*)$"  contained
-    syn match browseFilter      "^\" Not Showing:.*$"
-    syn match browseFiletime    "«\d\+$"
-    exec('syn match browseSuffixes    "' . b:suffixesHighlight . '"')
+	" Set up syntax highlighting
+	" Something wrong with the evaluation of the conditional though...
+	if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
+		syn match browseSynopsis    "^\"[ -].*"
+		syn match favoriteDirectory "^+ .*$"
+		syn match browseDirectory   "[^\"+].*/ "
+		syn match browseDirectory   "[^\"+].*/$"
+		syn match browseCurDir      "^\"= .*$"
+		syn match browseSortBy      "^\" Sorted by .*$"  contains=browseSuffixInfo
+		syn match browseSuffixInfo  "(.*)$"  contained
+		syn match browseFilter      "^\" Not Showing:.*$"
+		syn match browseFiletime    "«\d\+$"
+		exec('syn match browseSuffixes    "' . b:suffixesHighlight . '"')
 
-    "hi def link browseSynopsis    PreProc
-    hi def link browseSynopsis    Special
-    hi def link browseDirectory   Directory
-    hi def link browseCurDir      Statement
-    hi def link browseSortBy      String
-    hi def link browseSuffixInfo  Type
-    hi def link browseFilter      String
-    hi def link browseFiletime    Ignore
-    hi def link browseSuffixes    Type
-  endif
-  " Set up mappings for this buffer
-  let cpo_save = &cpo
-  set cpo&vim
+		"hi def link browseSynopsis    PreProc
+		hi def link browseSynopsis    Special
+		hi def link browseDirectory   Directory
+		hi def link browseCurDir      Statement
+		hi def link favoriteDirectory Type
+		hi def link browseSortBy      String
+		hi def link browseSuffixInfo  Type
+		hi def link browseFilter      String
+		hi def link browseFiletime    Ignore
+		hi def link browseSuffixes    Type
+	endif
+	" Set up mappings for this buffer
+	let cpo_save = &cpo
+	set cpo&vim
 
 	if exists("b:displayMode") && b:displayMode == "winmanager"
 		" when called in winmanager mode, the argument movefirst assumes the role
@@ -403,6 +416,7 @@ function! s:EditDir(...)
 		nnoremap <buffer> C    :call <SID>EditDir(getcwd(),1)<cr>:call <SID>RestoreFileDisplay()<cr>
 		nnoremap <buffer> <F5> :call <SID>EditDir(b:completePath,1)<cr>:call <SID>RestoreFileDisplay()<cr>
 		nnoremap <buffer> <C-^> <Nop>
+		nnoremap <buffer> f :call <SID>AddToFavDir()<cr>
 	else
 		nnoremap <buffer> <cr> :call <SID>EditEntry("","edit")<cr>
 		nnoremap <buffer> -    :exec ("silent e "  . b:parentDirEsc)<cr>
@@ -422,19 +436,20 @@ function! s:EditDir(...)
 	nnoremap <buffer> a   :call <SID>ShowAllFiles()<cr>:call <SID>RestoreFileDisplay()<cr>
 	nnoremap <buffer> R   :call <SID>RenameFile()<cr>
 	nnoremap <buffer> c   :exec "cd ".b:completePathEsc<cr>:pwd<cr>
-  let &cpo = cpo_save
+	let &cpo = cpo_save
 
-  " If directory is already loaded, don't open it again!
-  if line('$') > 1
-    setlocal nomodifiable
-    return
-  endif
+	" If directory is already loaded, don't open it again!
+	if line('$') > 1
+		setlocal nomodifiable
+		return
+	endif
 
-  " Show the files
-  call s:ShowDirectory()
+	" Show the files
+	call s:ShowDirectory()
+	call s:PrintFavDirs()
 
-  " prevent the buffer from being modified
-  setlocal nomodifiable
+	" prevent the buffer from being modified
+	setlocal nomodifiable
 
 	" remember the contents of this directory if its been displayed for the
 	" first time for fast redraw later. if we have reached here bcause of a
@@ -446,7 +461,7 @@ function! s:EditDir(...)
 	end
 	0
 	/^"=/+1
-  call s:CleanUpHistory()
+	call s:CleanUpHistory()
 	call s:RestoreFileDisplay()
 endfunction
 
@@ -455,21 +470,21 @@ endfunction
 " Otherwise, open file in the most recently visited window
 "
 function! s:OpenEntryPrevWindow()
-  " Figure out if there are any other windows
-  let n = winnr()
-  wincmd p
-  " No other window?  Then open a new one
-  if n == winnr()
-    call s:OpenEntry()
-  " Other windows exist
-  else
-    " Check if the previous buffer is modified - ask if they want to
-    " save!
-    let bufname = bufname(winbufnr(winnr()))
-    if &modified
-      let action=confirm("Save Changes in " . bufname . "?","&Yes\n&No\n&Cancel")
-      " Yes - try to save - if there is an error, cancel
-      if action == 1
+	" Figure out if there are any other windows
+	let n = winnr()
+	wincmd p
+	" No other window?  Then open a new one
+	if n == winnr()
+		call s:OpenEntry()
+		" Other windows exist
+	else
+		" Check if the previous buffer is modified - ask if they want to
+		" save!
+		let bufname = bufname(winbufnr(winnr()))
+		if &modified
+			let action=confirm("Save Changes in " . bufname . "?","&Yes\n&No\n&Cancel")
+			" Yes - try to save - if there is an error, cancel
+			if action == 1
 				let v:errmsg = ""
 				silent w
 				if v:errmsg != ""
@@ -477,19 +492,19 @@ function! s:OpenEntryPrevWindow()
 					wincmd p
 					return
 				endif
-			" No, abandon changes
+				" No, abandon changes
 			elseif action == 2
 				set nomodified
 				echomsg "Warning, abandoning changes in " . bufname
-			" Cancel (or any other result), don't do the open
+				" Cancel (or any other result), don't do the open
 			else
 				wincmd p
 				return
-      endif
-    endif
-    wincmd p
-    call s:EditEntry("wincmd p","edit")
-  endif
+			endif
+		endif
+		wincmd p
+		call s:EditEntry("wincmd p","edit")
+	endif
 endfunction
 
 "
@@ -504,7 +519,6 @@ function! s:RestoreFileDisplay()
 
 	let saverega = @a
 	normal! ggVG"ay
-	" call s:PrintError('setting s:dir_'.s:currentFileNumberDisplayed)
 	exec 'let s:FileList_'.s:currentFileNumberDisplayed.' = @a'
 	let @a = saverega
 
@@ -628,11 +642,11 @@ endfunction
 " Double click with the mouse
 "
 function s:DoubleClick()
-  if expand("<cfile>") =~ '[\\/]$'
-    call s:EditEntry("","edit")		" directory: open in this window
-  else
-    call s:OpenEntryPrevWindow()	" file: open in another window
-  endif
+	if expand("<cfile>") =~ '[\\/]$'
+		call s:EditEntry("","edit")		" directory: open in this window
+	else
+		call s:OpenEntryPrevWindow()	" file: open in another window
+	endif
 endfun
 
 "---
@@ -683,91 +697,103 @@ function! s:EditEntry(movefirst,editcmd)
 	end
 endfunction
 
-
 "---
 " Create a regular expression out of the suffixes option for sorting
 " and set a string to indicate whether we are sorting with the
 " suffixes at the end (or the beginning)
 "
 function! s:SetSuffixesLast()
-  let b:suffixesRegexp = '\(' . substitute(escape(&suffixes,s:escregexp),',','\\|','g') . '\)$'
-  let b:suffixesHighlight = '^[^"].*\(' . substitute(escape(&suffixes,s:escregexp),',','\\|','g') . '\)\( \|$\)'
-  if has("fname_case")
-    let b:suffixesRegexp = '\C' . b:suffixesRegexp
-    let b:suffixesHighlight = '\C' . b:suffixesHighlight
-  else
-    let b:suffixesRegexp = '\c' . b:suffixesRegexp
-    let b:suffixesHighlight = '\c' . b:suffixesHighlight
-  endif
-  if g:explSuffixesLast > 0 && &suffixes != ""
-    let b:suffixeslast=" (" . &suffixes . " at end of list)"
-  elseif g:explSuffixesLast < 0 && &suffixes != ""
-    let b:suffixeslast=" (" . &suffixes . " at start of list)"
-  else
-    let b:suffixeslast=" ('suffixes' mixed with files)"
-  endif
+	let b:suffixesRegexp = '\(' . substitute(escape(&suffixes,s:escregexp),',','\\|','g') . '\)$'
+	let b:suffixesHighlight = '^[^"].*\(' . substitute(escape(&suffixes,s:escregexp),',','\\|','g') . '\)\( \|$\)'
+	if has("fname_case")
+		let b:suffixesRegexp = '\C' . b:suffixesRegexp
+		let b:suffixesHighlight = '\C' . b:suffixesHighlight
+	else
+		let b:suffixesRegexp = '\c' . b:suffixesRegexp
+		let b:suffixesHighlight = '\c' . b:suffixesHighlight
+	endif
+	if g:explSuffixesLast > 0 && &suffixes != ""
+		let b:suffixeslast=" (" . &suffixes . " at end of list)"
+	elseif g:explSuffixesLast < 0 && &suffixes != ""
+		let b:suffixeslast=" (" . &suffixes . " at start of list)"
+	else
+		let b:suffixeslast=" ('suffixes' mixed with files)"
+	endif
 endfunction
 
 "---
 " Show the header and contents of the directory
 "
 function! s:ShowDirectory()
-  " Prevent a report of our actions from showing up
-  let oldRep=&report
-  let save_sc = &sc
-  set report=10000 nosc
+	" Prevent a report of our actions from showing up
+	let oldRep=&report
+	let save_sc = &sc
+	set report=10000 nosc
 
-  "Delete all lines
-  1,$d _
+	"Delete all lines
+	1,$d _
 
-  " Add the header
-  call s:AddHeader()
-  $d _
+	" Add the header
+	call s:AddHeader()
+	$d _
 
-  " Display the files
+	" Display the files
 
-  " Get a list of all the files
-  let files = s:Path(glob(b:completePath."*"))
-  if files != "" && files !~ '\n$'
-    let files = files . "\n"
-  endif
+	" Get a list of all the files
+	let files = s:Path(glob(b:completePath."*"))
+	if files != "" && files !~ '\n$'
+		let files = files . "\n"
+	endif
 
-  " Add the dot files now, making sure "." is not included!
-  let files = files . substitute(s:Path(glob(b:completePath.".*")), "[^\n]*/./\\=\n", '' , '')
-  if files != "" && files !~ '\n$'
-    let files = files . "\n"
-  endif
+	" Add the dot files now, making sure "." is not included!
+	let files = files . substitute(s:Path(glob(b:completePath.".*")), "[^\n]*/./\\=\n", '' , '')
+	if files != "" && files !~ '\n$'
+		let files = files . "\n"
+	endif
 
-  " Are there any files left after filtering?
-  if files != ""
-    normal! mt
-    put =files
-    let b:maxFileLen = 0
-    0
-    /^"=/+1,$g/^/call s:MarkDirs()
-  	call s:CleanUpHistory()
-    normal! `t
-    call s:AddFileInfo()
-  endif
+	" Are there any files left after filtering?
+	if files != ""
+		normal! mt
+		put =files
+		let b:maxFileLen = 0
+		0
+		/^"=/+1,$g/^/call s:MarkDirs()
+		call s:CleanUpHistory()
+		normal! `t
+		call s:AddFileInfo()
+	endif
 
-  normal! zz
+	normal! zz
 
-  " Move to first directory in the listing
-  0
-  /^"=/+1
-  call s:CleanUpHistory()
+	" Move to first directory in the listing
+	0
+	/^"=/+1
+	call s:CleanUpHistory()
 
-  " Do the sort
-  call s:SortListing("Loaded contents of ".b:completePath.". ")
+	" Do the sort
+	call s:SortListing("Loaded contents of ".b:completePath.". ")
 
-  " Move to first directory in the listing
-  0
-  /^"=/+1
-  call s:CleanUpHistory()
+	" Move to first directory in the listing
+	0
+	/^"=/+1
+	call s:CleanUpHistory()
 
-  let &report=oldRep
-  let &sc = save_sc
+	let &report=oldRep
+	let &sc = save_sc
 
+endfunction
+
+function! s:AddToFavDir()
+
+	if s:favDirs !~ "\\(^\\|\n\\)".b:completePath."\\(\n\\|$\\)"
+		let s:favDirs = s:favDirs."\n".b:completePath
+	else
+		return
+	endif
+
+	let pos = (line('.')+1).' | normal! '.virtcol('.').'|'
+	call s:PrintFavDirs()
+	exe pos
 endfunction
 
 "---
@@ -775,40 +801,40 @@ endfunction
 " must be used only when size/date is not displayed
 "
 function! s:MarkDirs()
-  let oldRep=&report
-  set report=1000
-  "Remove slashes if added
-  s;/$;;e
-  "Removes all the leading slashes and adds slashes at the end of directories
-  s;^.*\\\([^\\]*\)$;\1;e
-  s;^.*/\([^/]*\)$;\1;e
-  "normal! ^
-  let currLine=getline(".")
-  if isdirectory(b:completePath . currLine)
-    s;$;/;
-    let fileLen=strlen(currLine)+1
-  else
-    let fileLen=strlen(currLine)
-    if (b:filterFormula!="") && (currLine =~ b:filterFormula)
-      " Don't show the file if it is to be filtered.
-      d _
-    endif
-  endif
-  if fileLen > b:maxFileLen
-    let b:maxFileLen=fileLen
-  endif
-  let &report=oldRep
+	let oldRep=&report
+	set report=1000
+	"Remove slashes if added
+	s;/$;;e
+	"Removes all the leading slashes and adds slashes at the end of directories
+	s;^.*\\\([^\\]*\)$;\1;e
+	s;^.*/\([^/]*\)$;\1;e
+	"normal! ^
+	let currLine=getline(".")
+	if isdirectory(b:completePath . currLine)
+		s;$;/;
+		let fileLen=strlen(currLine)+1
+	else
+		let fileLen=strlen(currLine)
+		if (b:filterFormula!="") && (currLine =~ b:filterFormula)
+			" Don't show the file if it is to be filtered.
+			d _
+		endif
+	endif
+	if fileLen > b:maxFileLen
+		let b:maxFileLen=fileLen
+	endif
+	let &report=oldRep
 endfunction
 
 "---
 " Make sure a path has proper form
 "
 function! s:Path(p)
-  if has("dos16") || has("dos32") || has("win16") || has("win32") || has("os2")
-    return substitute(a:p,'\\','/','g')
-  else
-    return a:p
-  endif
+	if has("dos16") || has("dos32") || has("win16") || has("win32") || has("os2")
+		return substitute(a:p,'\\','/','g')
+	else
+		return a:p
+	endif
 endfunction
 
 "---
@@ -828,44 +854,51 @@ endfunction
 
 
 function! s:GetFullFileName()
-  return s:ExtractFullFileName(getline("."))
+	if getline('.') =~ '+ '
+		if match(getline('.'), '(.*)') > 0
+			return matchstr(getline('.'), '(\zs.*\ze)')
+		else
+			return strpart(getline('.'), 2, 1000)
+		endif
+	endif
+	return s:ExtractFullFileName(getline("."))
 endfunction
 
 function! s:GetFileName()
-  return s:ExtractFileName(getline("."))
+	return s:ExtractFileName(getline("."))
 endfunction
 
 function! s:ExtractFullFileName(line)
-      let fn=s:ExtractFileName(a:line)
-      if fn == '/'
-              return b:completePath
-      else
-              return b:completePath . s:ExtractFileName(a:line)
-      endif
+	let fn=s:ExtractFileName(a:line)
+	if fn == '/'
+		return b:completePath
+	else
+		return b:completePath . s:ExtractFileName(a:line)
+	endif
 endfunction
 
 function! s:ExtractFileName(line)
-  return substitute(strpart(a:line,0,b:maxFileLen),'\s\+$','','')
+	return substitute(strpart(a:line,0,b:maxFileLen),'\s\+$','','')
 endfunction
 
 "---
 " Get the size of the file
 function! s:ExtractFileSize(line)
-  if (w:longlist==0)
-    return getfsize(s:ExtractFileName(a:line))
-  else
-    return strpart(a:line,b:maxFileLen+2,b:maxFileSizeLen);
-  endif
+	if (w:longlist==0)
+		return getfsize(s:ExtractFileName(a:line))
+	else
+		return strpart(a:line,b:maxFileLen+2,b:maxFileSizeLen);
+	endif
 endfunction
 
 "---
 " Get the date of the file as a number
 function! s:ExtractFileDate(line)
-  if w:longlist==0
-    return getftime(s:ExtractFileName(a:line))
-  else
-    return strpart(matchstr(strpart(a:line,b:maxFileLen+b:maxFileSizeLen+4),"«.*"),1) + 0
-  endif
+	if w:longlist==0
+		return getftime(s:ExtractFileName(a:line))
+	else
+		return strpart(matchstr(strpart(a:line,b:maxFileLen+b:maxFileSizeLen+4),"«.*"),1) + 0
+	endif
 endfunction
 
 
@@ -873,76 +906,102 @@ endfunction
 " Add the header with help information
 "
 function! s:AddHeader()
-    let save_f=@f
-    1
-    if w:longhelp==1
-      let @f="\" <enter> : open file or directory\n"
-           \."\" o : open new window for file/directory\n"
-           \."\" O : open file in previously visited window\n"
-           \."\" p : preview the file\n"
-           \."\" i : toggle size/date listing\n"
-           \."\" s : select sort field    r : reverse sort\n"
-           \."\" - : go up one level      c : cd to this dir\n"
-           \."\" R : rename file          D : delete file\n"
-           \."\" :help file-explorer for detailed help\n"
-    else
-      let @f="\" Press ? for keyboard shortcuts\n"
-    endif
-    let @f=@f."\" Sorted by ".w:sortdirlabel.w:sorttype.b:suffixeslast.b:filtering."\n"
-    let @f=@f."\"= ".b:completePath."\n"
-    put! f
-    let @f=save_f
+	let save_f=@f
+	1
+	if w:longhelp==1
+		let @f="\" <enter> : open file or directory\n"
+			\."\" o : open new window for file/directory\n"
+			\."\" O : open file in previously visited window\n"
+			\."\" p : preview the file\n"
+			\."\" i : toggle size/date listing\n"
+			\."\" s : select sort field    r : reverse sort\n"
+			\."\" - : go up one level      c : cd to this dir\n"
+			\."\" R : rename file          D : delete file\n"
+			\."\" f : add current directory to favourites\n"
+			\."\" :help file-explorer for detailed help\n"
+	else
+		let @f="\" Press ? for keyboard shortcuts\n"
+	endif
+	let @f=@f."\" Sorted by ".w:sortdirlabel.w:sorttype.b:suffixeslast.b:filtering."\n"
+	let @f=@f."\"= ".b:completePath."\n"
+	put! f
+	let @f=save_f
 endfunction
 
+function! s:PrintFavDirs()
+	if !exists('s:favDirs')
+		return
+	end
+	setlocal modifiable
+	0
+	if search('^"=')
+		exe  'silent! 1,'.line('.').' g/^+ .*$/d _'
+	else
+		call s:CleanUpHistory()
+		setlocal nomodifiable nomodified
+		return
+	endif
+	call s:CleanUpHistory()
+	let favDirs = s:favDirs
+	let favDirs = substitute(favDirs, "\\(^\\|\n\\)", '\1+ ', 'g')
+	let favDirs = substitute(favDirs, '$', "\n", '')
+	0
+	call search('^"=')
+	silent! put!=favDirs
+	silent! g/^+ /s/\v^\+ (.*)\/([^\/]+\/=)$/+ \2 (\1\/\2)
+	call s:CleanUpHistory()
+	call s:CleanUpHistory()
+	setlocal nomodifiable nomodified
+endfunction
 
 "---
 " Show the size and date for each file
 "
 function! s:AddFileInfo()
-  let save_sc = &sc
-  set nosc
+	let save_sc = &sc
+	set nosc
 
-  " Mark our starting point
-  normal! mt
+	" Mark our starting point
+	normal! mt
 
-  call s:RemoveSeparators()
+	call s:RemoveSeparators()
 
-  " Remove all info
-  0
-  /^"=/+1,$g/^/call setline(line("."),s:GetFileName())
-  call s:CleanUpHistory()
+	" Remove all info
+	0
+	/^"=/+1,$g/^/call setline(line("."),s:GetFileName())
+	call s:CleanUpHistory()
 
-  " Add info if requested
-  if w:longlist==1
-    " Add file size and calculate maximum length of file size field
-    let b:maxFileSizeLen = 0
-    0
-    /^"=/+1,$g/^/let fn=s:GetFullFileName() |
-                   \let fileSize=getfsize(fn) |
-                   \let fileSizeLen=strlen(fileSize) |
-                   \if fileSizeLen > b:maxFileSizeLen |
-                   \  let b:maxFileSizeLen = fileSizeLen |
-                   \endif |
-                   \exec "normal! ".(b:maxFileLen-strlen(getline("."))+2)."A \<esc>" |
-                   \exec 's/$/'.fileSize.'/'
-  	call s:CleanUpHistory()
+	" Add info if requested
+	if w:longlist==1
+		" Add file size and calculate maximum length of file size field
+		let b:maxFileSizeLen = 0
+		0
+		/^"=/+1,$g/^/let fn=s:GetFullFileName() |
+			\let fileSize=getfsize(fn) |
+			\let fileSizeLen=strlen(fileSize) |
+			\if fileSizeLen > b:maxFileSizeLen |
+			\   let b:maxFileSizeLen = fileSizeLen |
+			\endif |
+			\exec "normal! ".(b:maxFileLen-strlen(getline("."))+2)."A \<esc>" |
+			\exec 's/$/'.fileSize.'/'
+		call s:CleanUpHistory()
 
-    " Right justify the file sizes and
-    " add file modification date
-    0
-    /^"=/+1,$g/^/let fn=s:GetFullFileName() |
-                   \exec "normal! A \<esc>$b".(b:maxFileLen+b:maxFileSizeLen-strlen(getline("."))+3)."i \<esc>\"_x" |
-                   \exec 's/$/ '.escape(s:FileModDate(fn), '/').'/'
-  	call s:CleanUpHistory()
-    setlocal nomodified
-  endif
+		" Right justify the file sizes and
+		" add file modification date
+		0
+		/^"=/+1,$g/^/let fn=s:GetFullFileName() |
+			\exec "normal! A \<esc>$b".(b:maxFileLen+b:maxFileSizeLen-strlen(getline("."))+3)."i \<esc>\"_x" |
+			\exec 's/$/ '.escape(s:FileModDate(fn), '/').'/'
+		call s:CleanUpHistory()
+		setlocal nomodified
+	endif
 
-  call s:AddSeparators()
+	call s:AddSeparators()
 
-  " return to start
-  normal! `t
+	" return to start
+	normal! `t
 
-  let &sc = save_sc
+	let &sc = save_sc
 endfunction
 
 
@@ -950,98 +1009,98 @@ endfunction
 " Get the modification time for a file
 "
 function! s:FileModDate(name)
-  let filetime=getftime(a:name)
-  if filetime > 0
-    return strftime(g:explDateFormat,filetime) . " «" . filetime
-  else
-    return ""
-  endif
+	let filetime=getftime(a:name)
+	if filetime > 0
+		return strftime(g:explDateFormat,filetime) . " «" . filetime
+	else
+		return ""
+	endif
 endfunction
 
 "---
 " Delete a file or files
 "
 function! s:DeleteFile() range
-  let oldRep = &report
-  let &report = 1000
+	let oldRep = &report
+	let &report = 1000
 
-  let filesDeleted = 0
-  let stopDel = 0
-  let delAll = 0
-  let currLine = a:firstline
-  let lastLine = a:lastline
-  setlocal modifiable
+	let filesDeleted = 0
+	let stopDel = 0
+	let delAll = 0
+	let currLine = a:firstline
+	let lastLine = a:lastline
+	setlocal modifiable
 
-  while ((currLine <= lastLine) && (stopDel==0))
-    exec(currLine)
-    let fileName=s:GetFullFileName()
-    if isdirectory(fileName)
-      echo fileName." : Directory deletion not supported yet"
-      let currLine = currLine + 1
-    else
-      if delAll == 0
-        let sure=input("Delete ".fileName." (y/n/a/q)? ")
-        if sure=="a"
-          let delAll = 1
-        endif
-      endif
-      if (sure=="y") || (sure=="a")
-        let success=delete(fileName)
-        if success!=0
-          exec (" ")
-          echo "\nCannot delete ".fileName
-          let currLine = currLine + 1
-        else
-          d _
-          let filesDeleted = filesDeleted + 1
-          let lastLine = lastLine - 1
-        endif
-      elseif sure=="q"
-        let stopDel = 1
-      elseif sure=="n"
-        let currLine = currLine + 1
-      endif
-    endif
-  endwhile
-  echo "\n".filesDeleted." files deleted"
-  let &report = oldRep
-  setlocal nomodified
-  setlocal nomodifiable
+	while ((currLine <= lastLine) && (stopDel==0))
+		exec(currLine)
+		let fileName=s:GetFullFileName()
+		if isdirectory(fileName)
+			echo fileName." : Directory deletion not supported yet"
+			let currLine = currLine + 1
+		else
+			if delAll == 0
+				let sure=input("Delete ".fileName." (y/n/a/q)? ")
+				if sure=="a"
+					let delAll = 1
+				endif
+			endif
+			if (sure=="y") || (sure=="a")
+				let success=delete(fileName)
+				if success!=0
+					exec (" ")
+					echo "\nCannot delete ".fileName
+					let currLine = currLine + 1
+				else
+					d _
+					let filesDeleted = filesDeleted + 1
+					let lastLine = lastLine - 1
+				endif
+			elseif sure=="q"
+				let stopDel = 1
+			elseif sure=="n"
+				let currLine = currLine + 1
+			endif
+		endif
+	endwhile
+	echo "\n".filesDeleted." files deleted"
+	let &report = oldRep
+	setlocal nomodified
+	setlocal nomodifiable
 endfunction
 
 "---
 " Rename a file
 "
 function! s:RenameFile()
-  let fileName=s:GetFullFileName()
-  setlocal modifiable
-  if isdirectory(fileName)
-    echo "Directory renaming not supported yet"
-  elseif filereadable(fileName)
-    let altName=input("Rename ".fileName." to : ")
-    echo " "
-    if altName==""
-      setlocal nomodifiable
-      return
-    endif
-    let success=rename(fileName, b:completePath.altName)
-    if success!=0
-      echo "Cannot rename ".fileName. " to ".altName
-    else
-      echo "Renamed ".fileName." to ".altName
-      let oldRep=&report
-      set report=1000
+	let fileName=s:GetFullFileName()
+	setlocal modifiable
+	if isdirectory(fileName)
+		echo "Directory renaming not supported yet"
+	elseif filereadable(fileName)
+		let altName=input("Rename ".fileName." to : ")
+		echo " "
+		if altName==""
+			setlocal nomodifiable
+			return
+		endif
+		let success=rename(fileName, b:completePath.altName)
+		if success!=0
+			echo "Cannot rename ".fileName. " to ".altName
+		else
+			echo "Renamed ".fileName." to ".altName
+			let oldRep=&report
+			set report=1000
 			" e!
 			" instead of generating a bufEnter event if we use e!, use EditDir. It
 			" doesnt matter that EditDir() is called with more than 0 arguments
 			" whether or not winmanager is active because at this location, we have
 			" a buffer open anyway.
-      call s:EditDir(b:completePath, 1)
-      let &report=oldRep
-    endif
-  endif
-  setlocal nomodified
-  setlocal nomodifiable
+			call s:EditDir(b:completePath, 1)
+			let &report=oldRep
+		endif
+	endif
+	setlocal nomodified
+	setlocal nomodifiable
 	call s:RestoreFileDisplay()
 endfunction
 
@@ -1049,83 +1108,83 @@ endfunction
 " Toggle between short and long help
 "
 function! s:ToggleHelp()
-  if exists("w:longhelp") && w:longhelp==0
-    let w:longhelp=1
-    let s:longhelp=1
-  else
-    let w:longhelp=0
-    let s:longhelp=0
-  endif
-  " Allow modification
-  setlocal modifiable
-  call s:UpdateHeader()
-  " Disallow modification
-  setlocal nomodifiable
+	if exists("w:longhelp") && w:longhelp==0
+		let w:longhelp=1
+		let s:longhelp=1
+	else
+		let w:longhelp=0
+		let s:longhelp=0
+	endif
+	" Allow modification
+	setlocal modifiable
+	call s:UpdateHeader()
+	" Disallow modification
+	setlocal nomodifiable
 endfunction
 
 "---
 " Update the header
 "
 function! s:UpdateHeader()
-  let oldRep=&report
-  set report=10000
-  " Save position
-  normal! mt
-  " Remove old header
-  0
-  1,/^"=/ d _
-  call s:CleanUpHistory()
-  " Add new header
-  call s:AddHeader()
-  " Go back where we came from if possible
-  0
-  if line("'t") != 0
-    normal! `t
-  endif
+	let oldRep=&report
+	set report=10000
+	" Save position
+	normal! mt
+	" Remove old header
+	0
+	1,/^"=/ d _
+	call s:CleanUpHistory()
+	" Add new header
+	call s:AddHeader()
+	" Go back where we came from if possible
+	0
+	if line("'t") != 0
+		normal! `t
+	endif
 
-  let &report=oldRep
-  setlocal nomodified
+	let &report=oldRep
+	setlocal nomodified
 endfunction
 
 "---
 " Toggle long vs. short listing
 "
 function! s:ToggleLongList()
-  setlocal modifiable
-  if exists("w:longlist") && w:longlist==1
-    let w:longlist=0
-    let s:longlist=0
-  else
-    let w:longlist=1
-    let s:longlist=1
-  endif
-  call s:AddFileInfo()
-  setlocal nomodifiable
+	setlocal modifiable
+	if exists("w:longlist") && w:longlist==1
+		let w:longlist=0
+		let s:longlist=0
+	else
+		let w:longlist=1
+		let s:longlist=1
+	endif
+	call s:AddFileInfo()
+	setlocal nomodifiable
 endfunction
 
 "---
 " Show all files - remove filtering
 "
 function! s:ShowAllFiles()
-  setlocal modifiable
-  let b:filterFormula=""
-  let b:filtering=""
-  call s:ShowDirectory()
-  setlocal nomodifiable
+	setlocal modifiable
+	let b:filterFormula=""
+	let b:filtering=""
+	call s:ShowDirectory()
+	setlocal nomodifiable
 endfunction
 
 "---
 " Figure out what section we are in
 "
 function! s:GetSection()
-  let fn=s:GetFileName()
-  let section="file"
-  if fn =~ '/$'
-    let section="directory"
-  elseif fn =~ b:suffixesRegexp
-    let section="suffixes"
-  endif
-  return section
+	let fn=s:GetFileName()
+	let section="file"
+	if fn =~ '/$'
+		let section="directory"
+	elseif fn =~ b:suffixesRegexp
+		let section="suffixes"
+	endif
+	return section
 endfunction
 
 "---
@@ -1168,13 +1227,13 @@ endfunction
 " General string comparison function
 "
 function! s:StrCmp(line1, line2, direction)
-  if a:line1 < a:line2
-    return -a:direction
-  elseif a:line1 > a:line2
-    return a:direction
-  else
-    return 0
-  endif
+	if a:line1 < a:line2
+		return -a:direction
+	elseif a:line1 > a:line2
+		return a:direction
+	else
+		return 0
+	endif
 endfunction
 
 "---
@@ -1183,21 +1242,21 @@ endfunction
 " names before all file names
 "
 function! s:FileNameCmp(line1, line2, direction)
-  let f1=s:ExtractFileName(a:line1)
-  let f2=s:ExtractFileName(a:line2)
+	let f1=s:ExtractFileName(a:line1)
+	let f2=s:ExtractFileName(a:line2)
 
-  " Put directory names before file names
-  if (g:explDirsFirst != 0) && (f1 =~ '\/$') && (f2 !~ '\/$')
-    return -g:explDirsFirst
-  elseif (g:explDirsFirst != 0) && (f1 !~ '\/$') && (f2 =~ '\/$')
-    return g:explDirsFirst
-  elseif (g:explSuffixesLast != 0) && (f1 =~ b:suffixesRegexp) && (f2 !~ b:suffixesRegexp)
-    return g:explSuffixesLast
-  elseif (g:explSuffixesLast != 0) && (f1 !~ b:suffixesRegexp) && (f2 =~ b:suffixesRegexp)
-    return -g:explSuffixesLast
-  else
-    return s:StrCmp(f1,f2,a:direction)
-  endif
+	" Put directory names before file names
+	if (g:explDirsFirst != 0) && (f1 =~ '\/$') && (f2 !~ '\/$')
+		return -g:explDirsFirst
+	elseif (g:explDirsFirst != 0) && (f1 !~ '\/$') && (f2 =~ '\/$')
+		return g:explDirsFirst
+	elseif (g:explSuffixesLast != 0) && (f1 =~ b:suffixesRegexp) && (f2 !~ b:suffixesRegexp)
+		return g:explSuffixesLast
+	elseif (g:explSuffixesLast != 0) && (f1 !~ b:suffixesRegexp) && (f2 =~ b:suffixesRegexp)
+		return -g:explSuffixesLast
+	else
+		return s:StrCmp(f1,f2,a:direction)
+	endif
 
 endfunction
 
@@ -1207,27 +1266,27 @@ endfunction
 " files first
 "
 function! s:FileDateCmp(line1, line2, direction)
-  let f1=s:ExtractFileName(a:line1)
-  let f2=s:ExtractFileName(a:line2)
-  let t1=s:ExtractFileDate(a:line1)
-  let t2=s:ExtractFileDate(a:line2)
+	let f1=s:ExtractFileName(a:line1)
+	let f2=s:ExtractFileName(a:line2)
+	let t1=s:ExtractFileDate(a:line1)
+	let t2=s:ExtractFileDate(a:line2)
 
-  " Put directory names before file names
-  if (g:explDirsFirst != 0) && (f1 =~ '\/$') && (f2 !~ '\/$')
-    return -g:explDirsFirst
-  elseif (g:explDirsFirst != 0) && (f1 !~ '\/$') && (f2 =~ '\/$')
-    return g:explDirsFirst
-  elseif (g:explSuffixesLast != 0) && (f1 =~ b:suffixesRegexp) && (f2 !~ b:suffixesRegexp)
-    return g:explSuffixesLast
-  elseif (g:explSuffixesLast != 0) && (f1 !~ b:suffixesRegexp) && (f2 =~ b:suffixesRegexp)
-    return -g:explSuffixesLast
-  elseif t1 > t2
-    return -a:direction
-  elseif t1 < t2
-    return a:direction
-  else
-    return s:StrCmp(f1,f2,1)
-  endif
+	" Put directory names before file names
+	if (g:explDirsFirst != 0) && (f1 =~ '\/$') && (f2 !~ '\/$')
+		return -g:explDirsFirst
+	elseif (g:explDirsFirst != 0) && (f1 !~ '\/$') && (f2 =~ '\/$')
+		return g:explDirsFirst
+	elseif (g:explSuffixesLast != 0) && (f1 =~ b:suffixesRegexp) && (f2 !~ b:suffixesRegexp)
+		return g:explSuffixesLast
+	elseif (g:explSuffixesLast != 0) && (f1 !~ b:suffixesRegexp) && (f2 =~ b:suffixesRegexp)
+		return -g:explSuffixesLast
+	elseif t1 > t2
+		return -a:direction
+	elseif t1 < t2
+		return a:direction
+	else
+		return s:StrCmp(f1,f2,1)
+	endif
 endfunction
 
 "---
@@ -1236,26 +1295,26 @@ endfunction
 " smallest files first
 "
 function! s:FileSizeCmp(line1, line2, direction)
-  let f1=s:ExtractFileName(a:line1)
-  let f2=s:ExtractFileName(a:line2)
-  let s1=s:ExtractFileSize(a:line1)
-  let s2=s:ExtractFileSize(a:line2)
+	let f1=s:ExtractFileName(a:line1)
+	let f2=s:ExtractFileName(a:line2)
+	let s1=s:ExtractFileSize(a:line1)
+	let s2=s:ExtractFileSize(a:line2)
 
-  if (g:explDirsFirst != 0) && (f1 =~ '\/$') && (f2 !~ '\/$')
-    return -g:explDirsFirst
-  elseif (g:explDirsFirst != 0) && (f1 !~ '\/$') && (f2 =~ '\/$')
-    return g:explDirsFirst
-  elseif (g:explSuffixesLast != 0) && (f1 =~ b:suffixesRegexp) && (f2 !~ b:suffixesRegexp)
-    return g:explSuffixesLast
-  elseif (g:explSuffixesLast != 0) && (f1 !~ b:suffixesRegexp) && (f2 =~ b:suffixesRegexp)
-    return -g:explSuffixesLast
-  elseif s1 > s2
-    return -a:direction
-  elseif s1 < s2
-    return a:direction
-  else
-    return s:StrCmp(f1,f2,1)
-  endif
+	if (g:explDirsFirst != 0) && (f1 =~ '\/$') && (f2 !~ '\/$')
+		return -g:explDirsFirst
+	elseif (g:explDirsFirst != 0) && (f1 !~ '\/$') && (f2 =~ '\/$')
+		return g:explDirsFirst
+	elseif (g:explSuffixesLast != 0) && (f1 =~ b:suffixesRegexp) && (f2 !~ b:suffixesRegexp)
+		return g:explSuffixesLast
+	elseif (g:explSuffixesLast != 0) && (f1 !~ b:suffixesRegexp) && (f2 =~ b:suffixesRegexp)
+		return -g:explSuffixesLast
+	elseif s1 > s2
+		return -a:direction
+	elseif s1 < s2
+		return a:direction
+	else
+		return s:StrCmp(f1,f2,1)
+	endif
 endfunction
 
 "---
@@ -1294,10 +1353,10 @@ function! s:SortR(start, end, cmp, direction)
   " goes, which could be anywhere before the partition.  Make sure it is at
   " the end of the partition.
   if middle != partition
-    let str = getline(middle)
-    let str2 = getline(partition)
-    call setline(middle, str2)
-    call setline(partition, str)
+	  let str = getline(middle)
+	  let str2 = getline(partition)
+	  call setline(middle, str2)
+	  call setline(partition, str)
   endif
   call s:SortR(a:start, partition - 1, a:cmp,a:direction)
   call s:SortR(partition + 1, a:end, a:cmp,a:direction)
@@ -1308,40 +1367,40 @@ endfunction
 " function that will compare two lines.
 "
 function! s:Sort(cmp,direction) range
-  call s:SortR(a:firstline, a:lastline, a:cmp, a:direction)
+	call s:SortR(a:firstline, a:lastline, a:cmp, a:direction)
 endfunction
 
 "---
 " Reverse the current sort order
 "
 function! s:SortReverse()
-  if exists("w:sortdirection") && w:sortdirection == -1
-    let w:sortdirection = 1
-    let w:sortdirlabel  = ""
-  else
-    let w:sortdirection = -1
-    let w:sortdirlabel  = "reverse "
-  endif
-  let s:sortby=w:sortdirlabel . w:sorttype
-  call s:SortListing("")
+	if exists("w:sortdirection") && w:sortdirection == -1
+		let w:sortdirection = 1
+		let w:sortdirlabel  = ""
+	else
+		let w:sortdirection = -1
+		let w:sortdirlabel  = "reverse "
+	endif
+	let s:sortby=w:sortdirlabel . w:sorttype
+	call s:SortListing("")
 endfunction
 
 "---
 " Toggle through the different sort orders
 "
 function! s:SortSelect()
-  " Select the next sort option
-  if !exists("w:sorttype")
-    let w:sorttype="name"
-  elseif w:sorttype == "name"
-    let w:sorttype="size"
-  elseif w:sorttype == "size"
-    let w:sorttype="date"
-  else
-    let w:sorttype="name"
-  endif
-  let s:sortby=w:sortdirlabel . w:sorttype
-  call s:SortListing("")
+	" Select the next sort option
+	if !exists("w:sorttype")
+		let w:sorttype="name"
+	elseif w:sorttype == "name"
+		let w:sorttype="size"
+	elseif w:sorttype == "size"
+		let w:sorttype="date"
+	else
+		let w:sorttype="name"
+	endif
+	let s:sortby=w:sortdirlabel . w:sorttype
+	call s:SortListing("")
 endfunction
 
 "---
@@ -1428,4 +1487,4 @@ let &cpo = s:cpo_save
 unlet s:cpo_save
 
 
-" vim: ts=2:noet:sw=2
+" vim: ts=4:noet:sw=4

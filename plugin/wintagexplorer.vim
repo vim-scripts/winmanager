@@ -1,7 +1,7 @@
 "=============================================================================
 "        File: wintagexplorer.vim
 "      Author: Srinath Avadhanula (srinath@eecs.berkeley.edu)
-" Last Change: Thu Mar 21 04:00 AM 2002 PST
+" Last Change: Wed Apr 03 05:00 PM 2002 PST
 "        Help: This file provides a simple interface to a tags file. The tags
 "              are grouped according to the file they belong to and the user can
 "              press <enter> while on a tag to open the tag in an adjacent
@@ -50,7 +50,6 @@ function! TagsExplorer_IsPossible()
 	end
 	return 1
 endfunction
-
 
 " This is the function which winmanager calls the first time this plugin is
 " displayed. Again, the rule for the name of this function is:
@@ -132,7 +131,7 @@ function! <SID>StartTagsFileDisplay()
 		setlocal nomodifiable
 
 		" revert to the last saved view.
-		exe 'call LoadView('.viewhash.')'
+		exe 'call s:LoadView('.viewhash.')'
 		exe 'let s:TagsDirectory = '.dirhash
 		
 		let s:lastHash = presHash
@@ -165,14 +164,14 @@ function! <SID>StartTagsFileDisplay()
 
 		exe 'let s:TagsDirectory = getcwd()'
 		exe 'let '.dirhash.' = getcwd()'	
-		exe 'let '.viewhash.' = MkViewNoNestedFolds()'
+		exe 'let '.viewhash.' = s:MkViewNoNestedFolds()'
 		let s:lastHash = presHash
 
 		return
 
 	elseif glob('tags') != ''
 
-	
+
 		let s:lastHash = substitute(fnamemodify('tags', ':p'), '[^a-zA-Z0-9]', '_', 'g')
 		
 		call <SID>DisplayTagsFile()
@@ -211,6 +210,10 @@ function! <SID>DisplayTagsFile()
 	silent! % g/^!_/de
 	" delete the first blank line which happens because of read
 	0 d
+	" if this is an empty tags file, then quit.
+	if line('$') < 1 || getline(1) =~ '^\s*$'
+		return
+	end
 
 	let startTime = localtime()
 	% call s:GroupTags()
@@ -232,7 +235,7 @@ function! <SID>DisplayTagsFile()
 	let s:tagsDisplay = @a
 
 	if g:saveTagsDisplay
-		if glob('.vimtagsdisplay')
+		if glob('.vimtagsdisplay') != ''
 			silent! redir! > .vimtagsdisplay
 		else
 			silent! redir > .vimtagsdisplay
@@ -246,7 +249,7 @@ function! <SID>DisplayTagsFile()
 	" store the directory of the current tags file location.
 	exe 'let '.dirhash.' = getcwd()'
 	exe 'let s:TagsDirectory = '.dirhash
-	exe 'let '.viewhash.' = MkViewNoNestedFolds()'
+	exe 'let '.viewhash.' = s:MkViewNoNestedFolds()'
 	
 	setlocal nomodified
 	setlocal nomodifiable
@@ -293,7 +296,7 @@ function! TagsExplorer_WrapUp()
 	end
 	
 	let viewhash = 's:viewHash_'.s:lastHash
-	exe 'let '.viewhash.' = MkViewNoNestedFolds()'
+	exe 'let '.viewhash.' = s:MkViewNoNestedFolds()'
 endfunction
 
 function! TagsExplorer_IsValid()
@@ -317,14 +320,14 @@ function! <SID>OpenTag(split)
 		let num = line('.')
 		?^\S
 		normal! 0
-		let fname = expand('<cfile>')
+		let fname = getline('.')
 		exe num
 	else
-		let fname = expand('<cfile>')
+		let fname = getline('.')
 	end
 	let _pwd = getcwd()
 	exe 'cd '.s:TagsDirectory
-	call WinManagerFileEdit(fnamemodify(fname, ':p'), 0)
+	call WinManagerFileEdit(fnamemodify(fname, ':p'), a:split)
 	exe 'cd '._pwd
 
 	if tag != '' 
@@ -416,3 +419,92 @@ function! TE_ShowVariableValue(...)
 		let i = i + 1
 	endwhile
 endfunction
+
+" Synopsis: let foldInfo = s:MkViewNoNestedFolds()
+" Description: returns the view information. This function is to be used when
+"    it is known that there are no nested folds in the file (i.e folds with
+"    depth > 1). when there are nested folds, this function silently ignores
+"    them.
+function! s:MkViewNoNestedFolds()
+	let row = line('.')
+	let col = virtcol('.')
+	let viewInfo = row.'#'.col.'#'
+	let openInfo = ''
+
+	let i = 1
+	while i <= line('$')
+		if foldlevel(i) > 0
+			let unfold = 0
+			if foldclosedend(i) < 0
+				exe i
+				normal! zc
+				let unfold = 1
+				let openInfo = openInfo.0.','
+			else
+				let openInfo = openInfo.1.','
+			end
+			let j = foldclosedend(i)
+			let viewInfo  = viewInfo.i.','.j.'|'
+			if unfold
+				exe i
+				normal! zo
+			end
+			let i = j + 1
+			continue
+		end
+		let i = i + 1
+	endwhile
+	
+	let viewInfo = viewInfo.'#'.openInfo
+	let viewInfo = substitute(viewInfo, '|#', '#', '')
+	let viewInfo = substitute(viewInfo, ',$', '', '')
+
+	exe row
+	exe 'normal! '.col.'|'
+
+	return viewInfo
+endfunction
+
+" Synopsis: call s:LoadView(foldInfo)
+" Description: This function restores the view defined in the argument
+"    foldInfo. See the description of MkView() for the format of this
+"    argument. This function should only be used when the foldmethod of the
+"    file is manual. There is no error-checking done in this function, so it
+"    needs to be used responsibly.
+function! s:LoadView(foldInfo)
+	let row = s:Strntok(a:foldInfo, '#', 1)
+	let col = s:Strntok(a:foldInfo, '#', 2)
+	let folds = s:Strntok(a:foldInfo, '#', 3)
+	let fclosedinfo = s:Strntok(a:foldInfo, '#', 4)
+	
+	normal! zE
+
+	let i = 1
+	let foldi = s:Strntok(folds, '|', i)
+	let isclosed = s:Strntok(fclosedinfo, ',', i)
+
+	while foldi != ''
+		let n1 = s:Strntok(foldi, ',', 1)
+		let n2 = s:Strntok(foldi, ',', 2)
+		exe n1.','.n2.' fold'
+
+		if !isclosed
+			exe n1
+			normal! zo
+		end
+
+		let i = i + 1
+		let foldi = s:Strntok(folds, '|', i)
+		let isclosed = s:Strntok(fclosedinfo, ',', i)
+	endwhile
+
+	exe row
+	exe 'normal! '.col.'|'
+endfunction
+
+" Strntok:
+" extract the n^th token from s seperated by tok. 
+" example: Strntok('1,23,3', ',', 2) = 23
+fun! <SID>Strntok(s, tok, n)
+	return matchstr( a:s.a:tok[0], '\v(\zs([^'.a:tok.']*)\ze['.a:tok.']){'.a:n.'}')
+endfun

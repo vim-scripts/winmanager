@@ -1,7 +1,7 @@
 "=============================================================================
 "        File: winmanager.vim
 "      Author: Srinath Avadhanula (srinath@eecs.berkeley.edu)
-" Last Change: Thu Mar 21 04:00 AM 2002 PST
+" Last Change: Wed Apr 03 05:00 PM 2002 PST
 "        Help: winmanager.vim is a plugin which implements a classical windows
 "              type IDE in Vim-6.0.  When you open up a new file, simply type
 "              in :WMToggle. This will start up the file explorer.
@@ -133,8 +133,21 @@ function! <SID>RegisterExplorerGroup()
 			if name == ''
 				break
 			end
-			" refuse to register an explorer twice.
-			if exists('s:'.name.'_numberID')
+			" refuse to register an explorer twice, or if the explorer's title
+			" doesnt exist.
+			if exists('s:'.name.'_numberID') || !exists('g:'.name.'_title')
+				if  !exists('g:'.name.'_title')
+					if has('gui_running')
+						call confirm(name." is registered as a plugin, but I cannot seem to find it anywhere.\n"
+							\.'Make sure you have downloaded the relevant plugin or change the g:winManagerWindowLayout variable',
+							\"&ok", 1, 'Warning')
+					else
+						echohl Error
+						echomsg name." is registered as a plugin, but I cannot seem to find it anywhere."
+							\.'Please make sure you have downloaded the relevant plugin'
+						echohl None
+					endif
+				endif
 				let i = i + 1
 				continue
 			end
@@ -407,46 +420,56 @@ function! WinManagerFileEdit(bufName, split)
 	set report=10000 nosc
 	
 	" if the file is already visible somewhere just go there.
-	if bufwinnr(bufnr('/'.a:bufName.'$')) != -1
-		call PrintError('wmfe: buffer already visible.')
+	" a:bufName is a fully qualified filename of the form
+	"    e:/path/to/file
+	" now bufnr('e:/path/to/file') != -1 even in the case where a file called
+	" e:/path/to/file/other/name is opened. (this is bufnr()'s behavior).
+	" therefore make an additional check so were protected against false
+	" matches.
+	if bufwinnr(bufnr(a:bufName)) != -1 &&
+		\ a:bufName == expand('#'.bufnr(a:bufName).':p')
+
 		call s:GotoWindow(bufwinnr(a:bufName))
 		" however, we still have to repair the @# register
 		call s:RepairAltRegister()
 
 	" otherwise goto the last listed buffer being edited.
 	else 
-		call PrintError('wmfe: buffer not visible right now.')
+
+		" if we had already opened this file, then use the #n notation instead
+		" of opening by file name. this preserves cursor position.
+		if bufnr(a:bufName) != -1 &&
+			\ a:bufName == expand('#'.bufnr(a:bufName).':p')
+			let bufcall = '#'.bufnr(a:bufName)
+		else
+			let bufcall = a:bufName
+		end
 
 		let lastBufferNumber = s:MRUGet(1)
-		call PrintError('lastBufferNumber = '.lastBufferNumber.' bufwinnr = '.bufwinnr(lastBufferNumber))
 		" if the last accessed buffer is visible, then goto it.
 		if bufwinnr(lastBufferNumber) != -1
-			call PrintError('last buffer visible.')
 			" the fact that we go to the last listed buffer and then open this
 			" buffer automatically protects the @# register.
 			call s:GotoWindow(bufwinnr(bufnr(lastBufferNumber)))
 			" now split it or not depending on stuff.
 			if (&modified && !&hidden) || a:split
-				exe 'silent! split '.a:bufName
+				exe 'silent! split '.bufcall
 			else
-				exe 'silent! e '.a:bufName
+				exe 'silent! e '.bufcall
 			end
 		else
 			" the last accessed buffer is not visible. this most probably
 			" means that the explorer buffers are the only windows visible.
 			" this means that the layout has to be redone by v-splitting a new
 			" window for this file.
-			call PrintError('last accessed buffer not visible.')
 			" first open the alternate file just to retain @# if its still
 			" listed. 
 			if buflisted(lastBufferNumber)
-				call PrintError('last acccessed buffer still listed.')
 				exe 'silent! vsplit #'.lastBufferNumber
-				exe 'silent! e '.a:bufName
+				exe 'silent! e '.bufcall
 			" the last accessed buffer has dissapeared. just edit this file.
 			else
-				call PrintError('last accessed buffer not visible and not listed')
-				exe 'silent! vsplit '.a:bufName
+				exe 'silent! vsplit '.bufcall
 			end
 			" now push this to the very right
 			wincmd L

@@ -1,6 +1,6 @@
 *winmanager*       Plugin for a classical Windows style IDE for Vim 6.0
                          For Vim version 6.0.
-              Last Change: Sat Feb 09 01:00 AM 2002 PST
+              Last Change: Sun Mar 31 11:00 PM 2002 PST
 
                             By Srinath Avadhanula
                             (srinath@fastmail.fm)
@@ -241,6 +241,7 @@ C                change the currently displayed directory to pwd (converse of
                  and then press 'C' in the file explorer area.
 s                select sort field (size, date, name) 
 r                reverse direction of sort 
+f                add current directory to list of favorites.
 R                rename file 
 D                delete file (or range of files in visual mode)
 -                move up one level
