@@ -1,7 +1,7 @@
 "=============================================================================
 "        File: winmanager.vim
 "      Author: Srinath Avadhanula (srinath@eecs.berkeley.edu)
-" Last Change: Wed Jan 30 01:00 PM 2002 PST
+" Last Change: Thu Mar 21 04:00 AM 2002 PST
 "        Help: winmanager.vim is a plugin which implements a classical windows
 "              type IDE in Vim-6.0.  When you open up a new file, simply type
 "              in :WMToggle. This will start up the file explorer.
@@ -882,6 +882,8 @@ function! <SID>GotoNextExplorerInGroup(name, ...)
 
 		" call the Start() function for the next explorer ...
 		exe 'call '.a:name.'_Start()'
+		exe 'nnoremap <buffer> <C-n> :WinManagerGotoNextInGroup "'.a:name.'"<cr>'
+		exe 'nnoremap <buffer> <C-p> :WinManagerGotoPrevInGroup "'.a:name.'"<cr>'
 		setlocal nomodifiable
 		call WinManagerForceReSize(a:name)
 	end
@@ -1033,16 +1035,41 @@ endfunction
 
 " toggle showing the explorer plugins.
 function! <SID>ToggleWindowsManager()
+	if IsWinManagerVisible()
+		call s:CloseWindowsManager()
+	else
+		call s:StartWindowsManager()
+	end
+endfunction
+
+" exported function. returns the buffer number of the last file being edited
+" in the file editing area.
+function! WinManagerGetLastEditedFile(...)
+	if a:0 == 0
+		return s:MRUGet(1)
+	else
+		let ret = s:MRUGet(a:1)
+		if ret == ''
+			return matchstr(s:MRUList, ',\zs[0-9]\+\ze,$')
+		else
+			return ret
+		end
+endfunction
+
+
+" exported function. returns 1 if any of the explorer windows are open,
+" otherwise returns 0.
+function! IsWinManagerVisible()
 	let i = 1
 	while i <= s:numExplorers
 		if s:IsExplorerVisible(i) != -1
-			call s:CloseWindowsManager()
-			return
+			return 1
 		end
 		let i = i + 1
 	endwhile
-	call s:StartWindowsManager()
+	return 0
 endfunction
+
 
 " close all the visible explorer windows.
 function! <SID>CloseWindowsManager()
@@ -1238,7 +1265,7 @@ function! <SID>EditDir(event)
 	endif
 	
 	" if it is, then call the modified explorer.vim's Explore command.
-	if a:event == "BufEnter"
+	if a:event != "VimEnter"
  		if exists(":Explore")
  			ExploreInCurrentWindow
  		end

@@ -1,7 +1,7 @@
 "=============================================================================
 " File: explorer.vim
 " Author: M A Aziz Ahmed (aziz@acorn-networks.com)
-" Last Change: Fri Jan 25 07:00 PM 2002 PST
+" Last Change: Sat Feb 16 12:00 PM 2002 PST
 " Version: 2.5
 " Additions by Mark Waggoner (waggoner@aracnet.com) et al.
 "-----------------------------------------------------------------------------
@@ -340,6 +340,7 @@ function! s:EditDir(...)
   else
     let w:longhelp = g:explDetailedHelp
   endif
+	call PrintError('setting window variables for '.winnr())
 
   " Set the sort based on the global variables the first time.  If you
   " later change the sort order, it will be retained in the s:sortby

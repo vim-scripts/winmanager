@@ -1,7 +1,7 @@
 "=============================================================================
 "        File: wintagexplorer.vim
 "      Author: Srinath Avadhanula (srinath@eecs.berkeley.edu)
-" Last Change: Sat Feb 02 11:00 PM 2002 PST
+" Last Change: Thu Mar 21 04:00 AM 2002 PST
 "        Help: This file provides a simple interface to a tags file. The tags
 "              are grouped according to the file they belong to and the user can
 "              press <enter> while on a tag to open the tag in an adjacent
@@ -40,9 +40,12 @@ let s:savedCursorCol = 1
 if !exists('g:TagsExplorerSkipError')
 	let g:TagsExplorerSkipError = 0
 end
+if !exists('g:saveTagsDisplay')
+	let g:saveTagsDisplay = 1
+end
 
 function! TagsExplorer_IsPossible()
-	if glob('tags') == '' && g:TagsExplorerSkipError && !exists('s:tagDisplay')
+	if glob('tags') == '' && g:TagsExplorerSkipError && !exists('s:tagsDisplay')
 		return 0
 	end
 	return 1
@@ -81,80 +84,15 @@ function! TagsExplorer_Start()
 	end
 
 	" set up the maps.
-	map <buffer> <silent> <c-]> :call <SID>OpenTag(0)<cr>
-	map <buffer> <silent> <cr> :call <SID>OpenTag(0)<cr>
-	map <buffer> <silent> <tab> :call <SID>OpenTag(1)<cr>
+	nnoremap <buffer> <silent> <c-]> :call <SID>OpenTag(0)<cr>
+	nnoremap <buffer> <silent> <cr> :call <SID>OpenTag(0)<cr>
+	nnoremap <buffer> <silent> <tab> :call <SID>OpenTag(1)<cr>
   	nnoremap <buffer> <silent> <2-leftmouse> :call <SID>OpenTag(0)<cr>
 	nnoremap <buffer> <silent> <space> za
-	map <buffer> <silent> <c-^> <Nop>
+	nnoremap <buffer> <silent> <c-^> <Nop>
+	nnoremap <buffer> <silent> <F5> :call <SID>DisplayTagsFile()<cr>
 
-	" if the tags were previously displayed, then they would have been saved
-	" in this script variable. Therefore, just paste the contents of that
-	" variable and quit.
-	if exists("s:tagDisplay")
-		put=s:tagDisplay
-		1d_
-		set nomodified
-		call s:FoldTags()
-		exe s:savedCursorRow
-		exe 'normal! '.s:savedCursorCol.'|'
-		return
-	end
-
-	1,$d_
-	" if a file called "tags" exists in the current directory, then read in
-	" the contents of that file.
-	if glob('tags') != ""
-		let s:TagsDirectory = getcwd()
-		read tags
-		" remove the leading comment lines.
-		% g/^!_/de
-		" delete the first blank line which happens because of read
-		0 d
-	else
-		let message = "
-\Error:
-\\n\n
-\No Tags File Found in the current directory. Try reopening WManager in a 
-\directory which contains a tags file.
-\\n\n
-\An easy way to do this is to switch to the file explorer plugin (using <c-n>), 
-\navigate to that directory, press 'c' while there in order to set the pwd, and 
-\then switch back to this view using <c-n>.
-\\n\n
-\This error message will not be shown for the remainder of this vim session. 
-\To have it not appear at all, set g:TagsExplorerSkipError to 1 in your .vimrc
-\"
-		put=message
-		1d
-		let s:nothing = 1
-		let _tw= &tw
-		let &tw = g:winManagerWidth - 2
-		normal! ggVGgq
-		% s/$/"/g
-		let &tw = _tw
-		set nomodified
-		let g:TagsExplorerSkipError = 1
-		return
-	end
-
-	let startTime = localtime()
-	% call s:SortTags2()
-	let sortEndTime = localtime()
-	
-	setlocal foldmethod=manual
-	call s:FoldTags()
-	let foldEndTime = localtime()
-
-	call PrintError('sort time: '.(sortEndTime - startTime))
-	call PrintError('folding time: '.(foldEndTime - sortEndTime))
-	call PrintError('total time: '.(foldEndTime - startTime))
-
-	" for fast redraw if this plugin is closed and reopened...
-	let _a = @a
-	normal! ggVG"ay
-	let s:tagDisplay = @a
-	let @a = _a
+	call <SID>StartTagsFileDisplay()
 	
 	" clean up.
 	setlocal nomodified
@@ -162,9 +100,200 @@ function! TagsExplorer_Start()
 	unlet! _showcmd
 endfunction
 
+function! <SID>StartTagsFileDisplay()
+
+	" if the tags were previously displayed, then they would have been saved
+	" in this script variable. Therefore, just paste the contents of that
+	" variable and quit.
+	" instead of using just one variable, create a hash from the complete path
+	" of the tags file so that tag files from multiple directories can be
+	" displayed and there is caching for each of them.
+	let presHash = substitute(fnamemodify('tags', ':p'), '[^a-zA-Z0-9]', '_', 'g')
+	let taghash = ''
+	if exists('s:tagHash_'.presHash)
+		let taghash = 's:tagHash_'.presHash
+		let dirhash = 's:dirHash_'.presHash
+		let viewhash = 's:viewHash_'.presHash
+
+		let s:lastHash = presHash
+	elseif glob('tags') == '' && exists('s:lastHash')
+		let taghash = 's:tagHash_'.s:lastHash
+		let dirhash = 's:dirHash_'.s:lastHash
+		let viewhash = 's:viewHash_'.s:lastHash
+	end
+
+	if taghash != ''
+
+		setlocal modifiable
+		1,$d_
+		exe 'put='.taghash
+		1d_
+		setlocal nomodified
+		setlocal nomodifiable
+
+		" revert to the last saved view.
+		exe 'call LoadView('.viewhash.')'
+		exe 'let s:TagsDirectory = '.dirhash
+		
+		let s:lastHash = presHash
+		return
+
+	end
+
+	if glob('.vimtagsdisplay') != '' && g:saveTagsDisplay
+
+
+		let presHash = substitute(getcwd().'\tags', '[^a-zA-Z0-9]', '_', 'g')
+		let taghash = 's:tagHash_'.presHash
+		let dirhash = 's:dirHash_'.presHash
+		let viewhash = 's:viewHash_'.presHash
+
+		setlocal modifiable
+		1,$ d_
+		read .vimtagsdisplay
+		let _a = @a
+		0
+		call search('^\S')
+		1,.-1 d_
+		normal! ggVG"ay
+		exe 'let '.taghash.' = @a'
+		let @a = _a
+		call s:FoldTags()
+		0
+		setlocal nomodified
+		setlocal nomodifiable
+
+		exe 'let s:TagsDirectory = getcwd()'
+		exe 'let '.dirhash.' = getcwd()'	
+		exe 'let '.viewhash.' = MkViewNoNestedFolds()'
+		let s:lastHash = presHash
+
+		return
+
+	elseif glob('tags') != ''
+
+	
+		let s:lastHash = substitute(fnamemodify('tags', ':p'), '[^a-zA-Z0-9]', '_', 'g')
+		
+		call <SID>DisplayTagsFile()
+
+	else
+
+	   call <SID>DisplayError()
+	   " setting this variable results in the next invokations of
+	   " TagsExplorer_IsPossible() to return 0. this makes
+	   " EditNextVisibleExplorer() skip displaying the tags file the next time
+	   " <C-n> is pressed.
+	   let g:TagsExplorerSkipError = 1
+	   return
+	
+	end
+
+endfunction
+
+
+function! <SID>DisplayTagsFile()
+
+	let _showcmd = &showcmd
+	let _report = &report
+	set noshowcmd
+	set report=10000
+	setlocal modifiable
+
+	if glob('tags') == ''
+		return
+	end
+
+	1,$ d_
+	silent! read tags
+
+	" remove the leading comment lines.
+	silent! % g/^!_/de
+	" delete the first blank line which happens because of read
+	0 d
+
+	let startTime = localtime()
+	% call s:GroupTags()
+	let sortEndTime = localtime()
+	
+	call s:FoldTags()
+	0
+	let foldEndTime = localtime()
+
+	let presHash = substitute(fnamemodify('tags', ':p'), '[^a-zA-Z0-9]', '_', 'g')
+	let taghash = 's:tagHash_'.presHash
+	let dirhash = 's:dirHash_'.presHash
+	let viewhash = 's:viewHash_'.presHash
+
+	" for fast redraw if this plugin is closed and reopened...
+	let _a = @a
+	normal! ggVG"ay
+	exe 'let '.taghash.' = @a'
+	let s:tagsDisplay = @a
+
+	if g:saveTagsDisplay
+		if glob('.vimtagsdisplay')
+			silent! redir! > .vimtagsdisplay
+		else
+			silent! redir > .vimtagsdisplay
+		end
+		silent! echo @a
+		redir END
+	end
+		
+	let @a = _a
+
+	" store the directory of the current tags file location.
+	exe 'let '.dirhash.' = getcwd()'
+	exe 'let s:TagsDirectory = '.dirhash
+	exe 'let '.viewhash.' = MkViewNoNestedFolds()'
+	
+	setlocal nomodified
+	setlocal nomodifiable
+	let &showcmd = _showcmd
+	let &report = _report
+
+endfunction
+
+function! <SID>DisplayError()
+
+	setlocal modifiable
+
+	1,$ d_
+
+    put='Error:'
+    put=''
+    put='No Tags File Found in the current directory. Try reopening WManager in a'
+    put='directory which contains a tags file.'
+    put=''
+    put='An easy way to do this is to switch to the file explorer plugin (using <c-n>),'
+    put='navigate to that directory, press \"c\" while there in order to set the pwd, and'
+    put='then switch back to this view using <c-n>.'
+    put=''
+    put='This error message will not be shown for the remainder of this vim session.'
+    put='To have it not appear at all, set g:TagsExplorerSkipError to 1 in your .vimrc'
+
+	1d
+	let _tw= &tw
+	let &tw = g:winManagerWidth - 2
+	normal! ggVGgq
+	% s/$/"/g
+	0
+
+	let &tw = _tw
+
+	setlocal nomodifiable
+	setlocal nomodified
+
+endfunction
+
 function! TagsExplorer_WrapUp()
-	let s:savedCursorRow = line('.')
-	let s:savedCursorCol = virtcol('.')
+	if !exists('s:lastHash')
+		return
+	end
+	
+	let viewhash = 's:viewHash_'.s:lastHash
+	exe 'let '.viewhash.' = MkViewNoNestedFolds()'
 endfunction
 
 function! TagsExplorer_IsValid()
@@ -173,7 +302,9 @@ endfunction
 
 function! <SID>OpenTag(split)
 	let line = getline('.')
-	if match(line, '"$') == '"'
+	" if ther is a quote at the end of the line, it means we are still
+	" displaying the error message. 
+	if match(line, '"$') != -1
 		return
 	end
 
@@ -193,7 +324,7 @@ function! <SID>OpenTag(split)
 	end
 	let _pwd = getcwd()
 	exe 'cd '.s:TagsDirectory
-	call WinManagerFileEdit(fname, 0)
+	call WinManagerFileEdit(fnamemodify(fname, ':p'), 0)
 	exe 'cd '._pwd
 
 	if tag != '' 
@@ -204,11 +335,12 @@ endfunction
 " function to group tags according to which file they belong to...
 " does not use the "% g" command. does the %g command introduce a O(n^2)
 " nature into the algo?
-function! <SID>SortTags2() range
+function! <SID>GroupTags() range
 	" get the first file
-	let s:numfiles = 0
+	let numfiles = 0
 	
 	let linenum = a:firstline
+
 	while linenum <= a:lastline
 		
 		" extract the filename and the tag name from this line. this is
@@ -224,14 +356,14 @@ function! <SID>SortTags2() range
 		" how clever can we get with that operation?
 		let fhashname = substitute(fname, '[^a-zA-Z0-9_]', '_', 'g')
 
-		if !exists('s:hash_'.fhashname)
-			exe 'let s:hash_'.fhashname.' = ""'
-			let s:numfiles = s:numfiles + 1
-			exe 'let s:filehash_'.s:numfiles.' = fhashname'
-			exe 'let s:filename_'.s:numfiles.' = fname'
+		if !exists('hash_'.fhashname)
+			exe 'let hash_'.fhashname.' = ""'
+			let numfiles = numfiles + 1
+			exe 'let filehash_'.numfiles.' = fhashname'
+			exe 'let filename_'.numfiles.' = fname'
 		end
 		" append this tag to the tag list corresponding to this file name.
-		exe 'let s:hash_'.fhashname.' = s:hash_'.fhashname.'."  ".tagname."\n"'
+		exe 'let hash_'.fhashname.' = hash_'.fhashname.'."  ".tagname."\n"'
 		
 		let linenum = linenum + 1
 	endwhile
@@ -239,11 +371,11 @@ function! <SID>SortTags2() range
 	1,$ d_
 	
 	let i = 1
-	while i <= s:numfiles
+	while i <= numfiles
 		$
-		exe 'let hashname = s:filehash_'.i
-		exe 'let tagsf = s:hash_'.hashname
-		exe 'let filename = s:filename_'.i
+		exe 'let hashname = filehash_'.i
+		exe 'let tagsf = hash_'.hashname
+		exe 'let filename = filename_'.i
 		let disp = filename."\n".tagsf
 
 		put=disp
@@ -254,6 +386,8 @@ function! <SID>SortTags2() range
 endfunction
 
 function! <SID>FoldTags()
+	
+	setlocal foldmethod=manual
 	1
 	let lastLine = 1
 	while 1
