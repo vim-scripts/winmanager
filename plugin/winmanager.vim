@@ -1,7 +1,7 @@
 "=============================================================================
 "        File: winmanager.vim
 "      Author: Srinath Avadhanula (srinath@eecs.berkeley.edu)
-" Last Change: Fri Jan 18 04:00 PM 2002 PST
+" Last Change: Wed Jan 30 01:00 PM 2002 PST
 "        Help: winmanager.vim is a plugin which implements a classical windows
 "              type IDE in Vim-6.0.  When you open up a new file, simply type
 "              in :WMToggle. This will start up the file explorer.
@@ -349,14 +349,12 @@ function! <SID>StartWindowsManager()
 
 	let &splitbelow = _split
 
-	" finally set the autocommand for refresh. the check is important
-	" otherwise each time winmanager is closed and reopened, the Refresh
-	" function begins to get called multiple times for a single BufEnter.
-	if !exists("s:doneAU")
+	augroup WinManagerRefresh
+		au!
 		au BufEnter * call <SID>RefreshWinManager()
 		au BufDelete * call <SID>RefreshWinManager("BufDelete")
-		let s:doneAU = 1
-	end
+	augroup END
+
 	call s:GotoWindow(currentWindowNumber)
 	" RepairAltRegister needs to be called here as well, because 
 	" 1. when winmanager is re-started, we need to restore the @# register to
@@ -680,11 +678,12 @@ function! <SID>RefreshWinManager(...)
 				end
 				if nearestWindow == 'inf'
 					wincmd H
+					" set up the correct width
+					" set width only if we are creating a new window...
+					exe g:winManagerWidth.'wincmd |'
 				end
 				call PrintError('doing the funky open thing')
 			end
-			" set up the correct width
-			exe g:winManagerWidth.'wincmd |'
 		end
 		let i = i + 1
 	endwhile

@@ -1,7 +1,7 @@
 "=============================================================================
 " File: explorer.vim
 " Author: M A Aziz Ahmed (aziz@acorn-networks.com)
-" Last Change: Tue Jan 15 11:00 AM 2002 PST
+" Last Change: Fri Jan 25 07:00 PM 2002 PST
 " Version: 2.5
 " Additions by Mark Waggoner (waggoner@aracnet.com) et al.
 "-----------------------------------------------------------------------------
@@ -307,8 +307,10 @@ function! s:EditDir(...)
 				0
 				let b:maxFileLen = 0
 				/^"=/+1,$g/^/call s:MarkDirs()
+  			call s:CleanUpHistory()
 				0
 				/^"=/+1
+  			call s:CleanUpHistory()
 				let &report=oldRep
 				let &sc = save_sc
 			end
@@ -443,6 +445,7 @@ function! s:EditDir(...)
 	end
 	0
 	/^"=/+1
+  call s:CleanUpHistory()
 	call s:RestoreFileDisplay()
 endfunction
 
@@ -741,6 +744,7 @@ function! s:ShowDirectory()
     let b:maxFileLen = 0
     0
     /^"=/+1,$g/^/call s:MarkDirs()
+  	call s:CleanUpHistory()
     normal! `t
     call s:AddFileInfo()
   endif
@@ -750,6 +754,7 @@ function! s:ShowDirectory()
   " Move to first directory in the listing
   0
   /^"=/+1
+  call s:CleanUpHistory()
 
   " Do the sort
   call s:SortListing("Loaded contents of ".b:completePath.". ")
@@ -757,6 +762,7 @@ function! s:ShowDirectory()
   " Move to first directory in the listing
   0
   /^"=/+1
+  call s:CleanUpHistory()
 
   let &report=oldRep
   let &sc = save_sc
@@ -903,6 +909,7 @@ function! s:AddFileInfo()
   " Remove all info
   0
   /^"=/+1,$g/^/call setline(line("."),s:GetFileName())
+  call s:CleanUpHistory()
 
   " Add info if requested
   if w:longlist==1
@@ -917,6 +924,7 @@ function! s:AddFileInfo()
                    \endif |
                    \exec "normal! ".(b:maxFileLen-strlen(getline("."))+2)."A \<esc>" |
                    \exec 's/$/'.fileSize.'/'
+  	call s:CleanUpHistory()
 
     " Right justify the file sizes and
     " add file modification date
@@ -924,6 +932,7 @@ function! s:AddFileInfo()
     /^"=/+1,$g/^/let fn=s:GetFullFileName() |
                    \exec "normal! A \<esc>$b".(b:maxFileLen+b:maxFileSizeLen-strlen(getline("."))+3)."i \<esc>\"_x" |
                    \exec 's/$/ '.escape(s:FileModDate(fn), '/').'/'
+  	call s:CleanUpHistory()
     setlocal nomodified
   endif
 
@@ -1064,6 +1073,7 @@ function! s:UpdateHeader()
   " Remove old header
   0
   1,/^"=/ d _
+  call s:CleanUpHistory()
   " Add new header
   call s:AddHeader()
   " Go back where we came from if possible
@@ -1126,6 +1136,7 @@ function! s:RemoveSeparators()
   endif
   0
   silent! exec '/^"=/+1,$g/^' . s:separator . "/d _"
+  call s:CleanUpHistory()
 endfunction
 
 "---
@@ -1138,6 +1149,7 @@ function! s:AddSeparators()
   endif
   0
   /^"=/+1
+  call s:CleanUpHistory()
   let lastsec=s:GetSection()
   +1
   .,$g/^/let sec=s:GetSection() |
@@ -1364,6 +1376,7 @@ function! s:SortListing(msg)
     else
       /^"=/+1,$call s:Sort("s:FileNameCmp",w:sortdirection)
     endif
+  	call s:CleanUpHistory()
 
     " Replace the header with updated information
     call s:UpdateHeader()
@@ -1402,6 +1415,12 @@ if !g:defaultExplorer
 		command -n=? -complete=dir ExploreInCurrentWindow :call <SID>EditDir()
 	endif
 end
+
+" CleanUpHistory
+function! <SID>CleanUpHistory()
+  call histdel("/", -1)
+  let @/ = histget("/", -1)
+endfunction
 
 " restore 'cpo'
 let &cpo = s:cpo_save

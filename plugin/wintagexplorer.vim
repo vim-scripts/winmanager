@@ -1,7 +1,7 @@
 "=============================================================================
 "        File: wintagexplorer.vim
 "      Author: Srinath Avadhanula (srinath@eecs.berkeley.edu)
-" Last Change: Fri Jan 18 04:00 PM 2002 PST
+" Last Change: Sat Feb 02 11:00 PM 2002 PST
 "        Help: This file provides a simple interface to a tags file. The tags
 "              are grouped according to the file they belong to and the user can
 "              press <enter> while on a tag to open the tag in an adjacent
@@ -80,6 +80,14 @@ function! TagsExplorer_Start()
 		hi def link TagsExplorerIgnore Ignore
 	end
 
+	" set up the maps.
+	map <buffer> <silent> <c-]> :call <SID>OpenTag(0)<cr>
+	map <buffer> <silent> <cr> :call <SID>OpenTag(0)<cr>
+	map <buffer> <silent> <tab> :call <SID>OpenTag(1)<cr>
+  	nnoremap <buffer> <silent> <2-leftmouse> :call <SID>OpenTag(0)<cr>
+	nnoremap <buffer> <silent> <space> za
+	map <buffer> <silent> <c-^> <Nop>
+
 	" if the tags were previously displayed, then they would have been saved
 	" in this script variable. Therefore, just paste the contents of that
 	" variable and quit.
@@ -101,6 +109,8 @@ function! TagsExplorer_Start()
 		read tags
 		" remove the leading comment lines.
 		% g/^!_/de
+		" delete the first blank line which happens because of read
+		0 d
 	else
 		let message = "
 \Error:
@@ -128,70 +138,16 @@ function! TagsExplorer_Start()
 		return
 	end
 
-	" interchange the order of the tag description. the standard tags format
-	" is:
-	" tagName     tagFile    tagRegExp
-	" change this to:
-	" tagFile     tagName
-	"
-	% s/\(\S*\)\s*\(\S*\)\s\+.*/\2\t\1/g
-
-	" delete the first blank line which happens because of read
-	0 d
-	
-	" group the contents according to file name. note that this is not a sort
-	" operation. it merely groups each set of tags belonging to the same file
-	" in a consecutive set of lines.
 	let startTime = localtime()
-	% call s:SortTags()
+	% call s:SortTags2()
 	let sortEndTime = localtime()
 	
-	0
-	let lastfname="highly improbable file name"
-	while 1
-		" goto first column of this line ...
-		normal! 0
-		" ... and extract the file name.
-		let fname = expand('<cWORD>')
-		" then if this is a new filename, write this as a little title above
-		" the present line...
-		if fname != lastfname
-			let _a = @a
-			let @a = fname
-			normal! O"aPj
-			" ... and remember that this is the file name for the next set of
-			" tags.
-			let lastfname = fname
-			let @a = _a
-		end
-		let curLine = line('.')
-		" then modify every tag entry which starts with this file name.
-		exe '% s/^'.escape(fname, '\').'\t/  /g'
-		exe curLine
-		" goto the next line which has a tag entry
-		let nextTagLineNum = search('\S\+\t\S\+', 'W')
-		if nextTagLineNum > 0
-			exe nextTagLineNum
-		else
-			break
-		end
-	endwhile
-	let indentEndTime = localtime()
-
-	" set up the maps.
-	map <buffer> <silent> <c-]> :call <SID>OpenTag(0)<cr>
-	map <buffer> <silent> <cr> :call <SID>OpenTag(0)<cr>
-	map <buffer> <silent> <tab> :call <SID>OpenTag(1)<cr>
-  	nnoremap <buffer> <silent> <2-leftmouse> :call <SID>OpenTag(0)<cr>
-	nnoremap <buffer> <silent> <space> za
-	map <buffer> <silent> <c-^> <Nop>
 	setlocal foldmethod=manual
 	call s:FoldTags()
 	let foldEndTime = localtime()
 
 	call PrintError('sort time: '.(sortEndTime - startTime))
-	call PrintError('indent time: '.(indentEndTime - sortEndTime))
-	call PrintError('folding time: '.(foldEndTime - indentEndTime))
+	call PrintError('folding time: '.(foldEndTime - sortEndTime))
 	call PrintError('total time: '.(foldEndTime - startTime))
 
 	" for fast redraw if this plugin is closed and reopened...
@@ -245,29 +201,56 @@ function! <SID>OpenTag(split)
 	end
 endfunction
 
-" function to group various tags according to which file they belong to.
-function! <SID>SortTags() range
-	" get the file which the first tag belongs to.
-	0
-	let line = getline('.')
-	let fname = matchstr(line, '^[^\t]*\t\@=')
-	let firstfname = fname
-	" then move all tags belonging to that file to the end.
-	exe '% g/^'.escape(fname, '\').'/m$'
+" function to group tags according to which file they belong to...
+" does not use the "% g" command. does the %g command introduce a O(n^2)
+" nature into the algo?
+function! <SID>SortTags2() range
+	" get the first file
+	let s:numfiles = 0
+	
+	let linenum = a:firstline
+	while linenum <= a:lastline
+		
+		" extract the filename and the tag name from this line. this is
+		" another potential speed killer.
+		let tagname = matchstr(getline(linenum), '^[^\t]*\t\@=')
+		let fname = matchstr(getline(linenum), '\t\zs[^\t]*\ze')
 
-	" then proceed to the file containing the next tag.
-	0
-	let line = getline('.')
-	let fname = matchstr(line, '^[^\t]*\t\@=')
-	" if we are done with all the files, then quit.
-	while fname != firstfname
-		" ... otherwise move the tags belonging to that file to the end as
-		" well.
-		exe '% g/^'.escape(fname, '\').'/m$'
-		0
-		let line = getline('.')
-		let fname = matchstr(line, '^[^\t]*\t\@=')
+		" create a hash with this name.
+		" this is the costliest operation in this loop. if the file names are
+		" fully qualified and some 50 characters long, this might take very
+		" long. however, every line _has_ to be processed and therefore
+		" something has to be done with the filename. the only question is,
+		" how clever can we get with that operation?
+		let fhashname = substitute(fname, '[^a-zA-Z0-9_]', '_', 'g')
+
+		if !exists('s:hash_'.fhashname)
+			exe 'let s:hash_'.fhashname.' = ""'
+			let s:numfiles = s:numfiles + 1
+			exe 'let s:filehash_'.s:numfiles.' = fhashname'
+			exe 'let s:filename_'.s:numfiles.' = fname'
+		end
+		" append this tag to the tag list corresponding to this file name.
+		exe 'let s:hash_'.fhashname.' = s:hash_'.fhashname.'."  ".tagname."\n"'
+		
+		let linenum = linenum + 1
 	endwhile
+	0
+	1,$ d_
+	
+	let i = 1
+	while i <= s:numfiles
+		$
+		exe 'let hashname = s:filehash_'.i
+		exe 'let tagsf = s:hash_'.hashname
+		exe 'let filename = s:filename_'.i
+		let disp = filename."\n".tagsf
+
+		put=disp
+
+		let i = i + 1
+	endwhile
+	0 d_
 endfunction
 
 function! <SID>FoldTags()
@@ -287,3 +270,15 @@ function! <SID>FoldTags()
 	exe lastLine.',$ fold'
 endfunction
 
+function! TE_ShowVariableValue(...)
+	let i = 1
+	while i <= a:0
+		exe 'let arg = a:'.i
+		if exists('s:'.arg) ||
+		\  exists('*s:'.arg)
+			exe 'let val = s:'.arg
+			echomsg 's:'.arg.' = '.val
+		end
+		let i = i + 1
+	endwhile
+endfunction
