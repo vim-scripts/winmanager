@@ -1,0 +1,27 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=95
+
+winmanager: A classical windows type environment for vim6.0 
+
+Snapshot                 : http://robotics.eecs.berkeley.edu/~srinath/vim/snapshot2.JPG 
+Detailed Instructions : http://robotics.eecs.berkeley.edu/~srinath/vim/winmanager.htm 
+Upates                    : http://robotics.eecs.berkeley.edu/~srinath/vim/winmanager-2.0.htm 
+
+winmanager is a plugin which implements a classical windows type IDE in Vim-6.0. Basically, you have the directory tree
+and the buffer list as 2 windows which stay on the left and the editing is done in a seperate area on the left. People
+have already made excellent File and Buffer explorers seperately and I thought that it might be a cool idea to combine
+them both.  winmanager.vim combines the standard File Explorer which ships with Vim6.0 and a Buffer Explorer written by
+Jeff Lanzarotta into one package.  It has the following features: 
+
+1. the buffer listing is dynamic: i.e as you keep changing windows, editing new files, etc, the buffer list changes
+dynamically. the window also resizes dynamically, i.e it tries to occupy the minimum possible space to display all the
+currently listed windows. also, only the filename (i.e without path) is displayed in this window. however, the full path
+name is echoed on the command line as one moves around. 
+
+2. the file explorer window doesn't actually edit a directory. Its a new empty file with modifiable off, etc. so that it
+doesnt eat up buffer numbers as you roam around the directory tree. I found the original behaviour slightly annoying...
+Also, I didnt find a way to change drives i.e go from c:/ to h:/ in the original explorer.vim. therefore i have added a
+tiny new mapping 'C' which changes the currently displayed directory to pwd. 
+
+Thanks! 
+
+
